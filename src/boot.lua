@@ -1,5 +1,10 @@
 print("Boot...")
 
+local devTopic = "/dev/"
+local resetTopic = devTopic .. "reset"
+local heapTopic = devTopic .. "heap"
+local lwtTopic = devTopic .. "lwt"
+
 config = require("config")
 update = require("update")
 pcall( function() app = require("app") end )
@@ -9,28 +14,26 @@ env = {
 	broker = mqtt.Client(config.MQTT.ROOT, 120, config.MQTT.USER, config.MQTT.PWD)
 }
 
-local resetTopic = "/reset"
-
 pcall( function() app.init(env) end )
 
 function wifiWatchDog()
 	tmr.alarm(1, 30000, tmr.ALARM_AUTO,
 		function()
 			if wifi.sta.getip()== nil then
-				wifi_start()
+				wifiConnect()
 			end
 		end)
 end
 
-function wifi_wait_ip()
+function wifiWaitIP()
   if wifi.sta.getip()== nil then
-    print("IP unavailable, Waiting...")
+    print("Waiting for IP ...")
   else
     tmr.stop(1)
     print("MAC: " .. wifi.ap.getmac())
-    print("IP: "..wifi.sta.getip())
-    
-		mqtt_init()
+    print("IP: ".. wifi.sta.getip())
+
+		mqttInit()
 		wifiWatchDog()
   end
 end
@@ -41,24 +44,23 @@ function findAP(t)
 			wifi.sta.config(ssid,config.SSID[ssid])
 			print("Connecting to " .. ssid .. " ...")
 	    wifi.sta.connect()
-			tmr.alarm(1, 2500, 1, wifi_wait_ip)
+			tmr.alarm(1, 2500, tmr.ALARM_AUTO, wifiWaitIP)
 			return
 		end
 	end
 
-	tmr.alarm(1, 5000, 1, wifi_start)
+	tmr.alarm(1, 5000, tmr.ALARM_AUTO, wifiConnect)
 end
 
-function wifi_start()
-	print("WiFi Setup...")
+function wifiConnect()
+	print("WiFi Connect ...")
   wifi.setmode(wifi.STATION);
   wifi.sta.getap(findAP)
 end
 
-local mqttInited = false
-function mqtt_init()
-	if mqttInited then return end
-
+local once = false
+function mqttInit()
+	env.broker:lwt(env.conf.MQTT.ROOT .. lwtTopic, "offline", 1, 1)
 	env.broker:on("message",
 		function(conn, topic, data)
 			if data ~= nil then
@@ -70,15 +72,24 @@ function mqtt_init()
 			end
 		end)
 
-	env.broker:connect(config.MQTT.HOST, config.MQTT.PORT, 0, 1,
-		function(con)
-			  print("MQTT connect...")
-				env.broker:subscribe(env.conf.MQTT.ROOT .. resetTopic,0, nil)
-		    update.subscribe(env)
-				pcall( function() app.subscribe(env) end )
-		end)
+env.broker:on("connect",
+	function(con)
+		print("MQTT connect...")
+		env.broker:subscribe(env.conf.MQTT.ROOT .. resetTopic,0, nil)
+		update.subscribe(env)
+		pcall( function() app.subscribe(env) end )
 
-	mqttInited = true
+		tmr.alarm(2, 60000, tmr.ALARM_AUTO,
+			function()
+				pcall( function() env.broker:publish(env.conf.MQTT.ROOT .. heapTopic,node.heap(),0,0, nil) end )
+			end)
+	end)
+
+	if not once then
+		env.broker:connect(config.MQTT.HOST, config.MQTT.PORT, 0, 1, nil)
+
+		once = true
+	end
 end
 
-wifi_start()
+wifiConnect()

@@ -1,6 +1,6 @@
 local module = {}
 
-local firmTopic = "/firmware"
+local firmTopic = "/dev/firmware"
 local appFile = "app.lua"
 
 local function update(data)
@@ -9,11 +9,8 @@ local function update(data)
   file.write(data)
   file.close()
 
-  print("Compiling...")
-  node.compile(appFile)
-  file.remove(appFile)
   local countdown = 5
-  tmr.alarm(2, 1000, 1,
+  tmr.alarm(2, 1000, tmr.ALARM_AUTO,
     function()
       print("Restarting in " .. countdown)
       countdown = countdown - 1

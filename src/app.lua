@@ -1,15 +1,9 @@
 local module = {}
 
 local subTopic = "/led"
-local pubTopic = "/heap"
 
 function module.init(env)
 	print("App start")
-
-	tmr.alarm(2, 5000, tmr.ALARM_AUTO,
-		function()
-			pcall( function() env.broker:publish(env.conf.MQTT.ROOT .. pubTopic,node.heap(),0,0, nil) end )
-		end)
 
 	gpio.mode(4,gpio.OUTPUT)
 end
