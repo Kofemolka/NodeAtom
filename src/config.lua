@@ -9,5 +9,6 @@ module.MQTT.HOST = "m20.cloudmqtt.com"
 module.MQTT.PORT = 17690
 module.MQTT.USER = "czaauaxu"
 module.MQTT.PWD = "Fg9Kmwf-1V31"
+module.MQTT.ROOT = tostring(node.chipid())
 
 return module

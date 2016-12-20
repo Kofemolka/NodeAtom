@@ -1,6 +1,6 @@
 local module = {}
 
-local firmTopic = "firmware"
+local firmTopic = "/firmware"
 local appFile = "app.lua"
 
 local function update(data)
@@ -23,8 +23,8 @@ local function update(data)
     end)
 end
 
-function module.subscribe(broker)
-  broker:subscribe(firmTopic,0, nil)
+function module.subscribe(env)
+  env.broker:subscribe(env.conf.MQTT.ROOT .. firmTopic,0, nil)
 end
 
 function module.onEvent(topic, data)

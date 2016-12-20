@@ -6,8 +6,10 @@ app = require("app")
 
 env = {
 	conf = config,
-	broker = mqtt.Client(wifi.ap.getmac(), 120, config.MQTT.USER, config.MQTT.PWD)
+	broker = mqtt.Client(config.MQTT.ROOT, 120, config.MQTT.USER, config.MQTT.PWD)
 }
+
+local resetTopic = "/reset"
 
 if app ~= false then
 	pcall( function() app.init(env) end )
@@ -51,18 +53,21 @@ function mqtt_init()
 	env.broker:on("message",
 		function(conn, topic, data)
 			if data ~= nil then
-				if update.onEvent(topic, data) then return end
+				local subTopic = string.sub(topic, string.len(config.MQTT.ROOT)+1)
+				if subTopic == resetTopic then node.restart() end
+				if update.onEvent(subTopic, data) then return end
 				if app ~= false then
-					pcall( function() app.onEvent(topic, data) end )
+					pcall( function() app.onEvent(subTopic, data) end )
 				end
 			end
 		end)
 
 	env.broker:connect(config.MQTT.HOST, config.MQTT.PORT, 0, 1,
 		function(con)
-		    update.subscribe(env.broker)
+				env.broker:subscribe(env.conf.MQTT.ROOT .. resetTopic,0, nil)
+		    update.subscribe(env)
 				if app ~= false then
-					pcall( function() app.subscribe(env.broker) end )
+					pcall( function() app.subscribe(env) end )
 				end
 		end)
 end
