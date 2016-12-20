@@ -2,7 +2,7 @@ print("Boot...")
 
 config = require("config")
 update = require("update")
-app = require("app")
+pcall( function() app = require("app") end )
 
 env = {
 	conf = config,
@@ -11,8 +11,15 @@ env = {
 
 local resetTopic = "/reset"
 
-if app ~= false then
-	pcall( function() app.init(env) end )
+pcall( function() app.init(env) end )
+
+function wifiWatchDog()
+	tmr.alarm(1, 30000, tmr.ALARM_AUTO,
+		function()
+			if wifi.sta.getip()== nil then
+				wifi_start()
+			end
+		end)
 end
 
 function wifi_wait_ip()
@@ -20,13 +27,11 @@ function wifi_wait_ip()
     print("IP unavailable, Waiting...")
   else
     tmr.stop(1)
-    print("\n====================================")
-    print("ESP8266 mode is: " .. wifi.getmode())
-    print("MAC address is: " .. wifi.ap.getmac())
-    print("IP is "..wifi.sta.getip())
-    print("====================================")
-
+    print("MAC: " .. wifi.ap.getmac())
+    print("IP: "..wifi.sta.getip())
+    
 		mqtt_init()
+		wifiWatchDog()
   end
 end
 
@@ -45,31 +50,35 @@ function findAP(t)
 end
 
 function wifi_start()
-    wifi.setmode(wifi.STATION);
-	  wifi.sta.getap(findAP)
+	print("WiFi Setup...")
+  wifi.setmode(wifi.STATION);
+  wifi.sta.getap(findAP)
 end
 
+local mqttInited = false
 function mqtt_init()
+	if mqttInited then return end
+
 	env.broker:on("message",
 		function(conn, topic, data)
 			if data ~= nil then
 				local subTopic = string.sub(topic, string.len(config.MQTT.ROOT)+1)
 				if subTopic == resetTopic then node.restart() end
 				if update.onEvent(subTopic, data) then return end
-				if app ~= false then
-					pcall( function() app.onEvent(subTopic, data) end )
-				end
+
+				pcall( function() app.onEvent(subTopic, data) end )
 			end
 		end)
 
 	env.broker:connect(config.MQTT.HOST, config.MQTT.PORT, 0, 1,
 		function(con)
+			  print("MQTT connect...")
 				env.broker:subscribe(env.conf.MQTT.ROOT .. resetTopic,0, nil)
 		    update.subscribe(env)
-				if app ~= false then
-					pcall( function() app.subscribe(env) end )
-				end
+				pcall( function() app.subscribe(env) end )
 		end)
+
+	mqttInited = true
 end
 
 wifi_start()
