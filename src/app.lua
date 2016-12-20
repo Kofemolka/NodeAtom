@@ -1,7 +1,12 @@
 local module = {}
 
 function module.init(env)
-	print("Appl start")
+	print("App start")
+
+	tmr.alarm(2, 5000, tmr.ALARM_AUTO,
+		function()
+			pcall( function() env.broker:publish("heap",node.heap(),0,0, nil) end )		
+		end)
 
 	gpio.mode(4,gpio.OUTPUT)
 end
@@ -13,7 +18,7 @@ function module.subscribe(broker)
 end
 
 function module.onEvent(topic, data)
-	if topic == "led" then		
+	if topic == "led" then
 		if data == "1" then
 			gpio.write(4,gpio.HIGH)
 		else

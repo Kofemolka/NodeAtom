@@ -9,7 +9,9 @@ env = {
 	broker = mqtt.Client(wifi.ap.getmac(), 120, config.MQTT.USER, config.MQTT.PWD)
 }
 
-app.init(env)
+if app ~= false then
+	pcall( function() app.init(env) end )
+end
 
 function wifi_wait_ip()
   if wifi.sta.getip()== nil then
@@ -37,7 +39,7 @@ function findAP(t)
 		end
 	end
 
-	tmr.alarm(1, 2500, 1, wifi_start)
+	tmr.alarm(1, 5000, 1, wifi_start)
 end
 
 function wifi_start()
@@ -50,14 +52,18 @@ function mqtt_init()
 		function(conn, topic, data)
 			if data ~= nil then
 				if update.onEvent(topic, data) then return end
-				app.onEvent(topic, data)
+				if app ~= false then
+					pcall( function() app.onEvent(topic, data) end )
+				end
 			end
 		end)
 
 	env.broker:connect(config.MQTT.HOST, config.MQTT.PORT, 0, 1,
 		function(con)
 		    update.subscribe(env.broker)
-				app.subscribe(env.broker)
+				if app ~= false then
+					pcall( function() app.subscribe(env.broker) end )
+				end
 		end)
 end
 

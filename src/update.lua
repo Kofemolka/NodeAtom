@@ -3,24 +3,11 @@ local module = {}
 local firmTopic = "firmware"
 local appFile = "app.lua"
 
-function module.subscribe(broker)
-  broker:subscribe(firmTopic,0, nil)
-end
-
-function module.onEvent(topic, data)
-  if topic == firmTopic then
-    process(data)
-    return true
-  end
-
-  return false
-end
-
-local function process(data)
+local function update(data)
   print("Updating...")
-  f = file.open(appFile, "w")
-  f:write(data)
-  f:close()
+  file.open(appFile, "w")
+  file.write(data)
+  file.close()
 
   print("Compiling...")
   node.compile(appFile)
@@ -34,6 +21,19 @@ local function process(data)
         node.restart()
       end
     end)
+end
+
+function module.subscribe(broker)
+  broker:subscribe(firmTopic,0, nil)
+end
+
+function module.onEvent(topic, data)
+  if topic == firmTopic then
+    update(data)
+    return true
+  end
+
+  return false
 end
 
 return module
