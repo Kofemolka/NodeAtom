@@ -74,7 +74,7 @@ function mqttInit()
 
 env.broker:on("connect",
 	function(con)
-		print("MQTT connect...")
+		print("MQTT connected")
 		env.broker:subscribe(env.conf.MQTT.ROOT .. resetTopic,0, nil)
 		update.subscribe(env)
 		pcall( function() app.subscribe(env) end )
@@ -86,6 +86,7 @@ env.broker:on("connect",
 	end)
 
 	if not once then
+		print("MQTT connect...")
 		env.broker:connect(config.MQTT.HOST, config.MQTT.PORT, 0, 1, nil)
 
 		once = true
